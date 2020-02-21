@@ -1,9 +1,12 @@
 <template lang="pug">
   div
     div(style="margin: 20px 0;")
-      date-range-picker(:to="$route.query.to" :from="$route.query.from" locale="fr" submit-title="Actualiser" :panel="$route.query.panel" begin="2016-02-19T00:00:00.000+01:00" @select="checkUpdate" :show-controls="false" :presets="['custom']" :panels=['range'] :theme="theme")
+    //-   date-range-picker(:to="$route.query.to" :from="$route.query.from" locale="fr" submit-title="Actualiser" :panel="$route.query.panel" @select="checkUpdate" :show-controls="false" :presets="['custom']" :panels="['year']" :theme="theme")
     div(style="margin: 20px 0;")
-      date-range-picker(:to="$route.query.to" :from="$route.query.from" @update="checkUpdate" )
+    hr
+    date-range-picker(:to="$route.query.to" :from="$route.query.from" locale="ru" @update="checkUpdate" showControls)
+    hr
+    //- ======
     div(style="margin: 20px 0;")
       button(
         v-for="localeValue in locales"
@@ -16,44 +19,47 @@
     div(style="margin: 20px 0;")
       date-range-picker(to="2019-02-19T23:00:00.000Z" from="2019-02-15T23:00:00.000Z" @update="checkUpdate" :locale="locale" allowFrom="")
     div(style="margin: 20px 0;")
-      date-range-picker(allowTo="2019-10-19T00:00:00.000Z" allowFrom="2019-10-15T00:00:00.000Z" @update="checkUpdate" :locale="locale")
+      date-range-picker(allowTo="2019-10-19T00:00:00.000Z" allowFrom="2019-10-15T00:00:00.000Z" @update="checkUpdate" :locale="locale" showControls)
 </template>
 
 <script lang="ts">
-  import { Component, Vue } from 'vue-property-decorator'
-  import DateRangePicker from '@/components/DateRangePicker.vue'
+import { Component, Vue } from 'vue-property-decorator';
+import DateRangePicker from '@/components/DateRangePicker.vue';
+// import DateRangePicker from '@/components/DateRangePicker_copy.vue';
 
-  @Component({
+@Component({
     components: {
-      DateRangePicker
-    },
-  })
-  export default class Home extends Vue {
-    theme = {
-      primary: '#46C3A3',
-      secondary: '#2D3E50',
-      ternary: '#93A0BD',
-      light: '#ffffff',
-      border: '#e6e6e6',
-      dark: '#000000',
-      hovers: {
-        day: '#CCC',
-        range: '#e6e6e6'
-      }
+        DateRangePicker
     }
-    locale: string = 'fr'
-    locales: string[] = ['en', 'de', 'ru', 'es', 'fr']
+})
+export default class Home extends Vue {
+    theme = {
+        primary: '#46C3A3',
+        secondary: '#2D3E50',
+        ternary: '#93A0BD',
+        light: '#ffffff',
+        border: '#e6e6e6',
+        dark: '#000000',
+        hovers: {
+            day: '#CCC',
+            range: '#e6e6e6'
+        }
+    };
+    locale: string = 'fr';
+    locales: string[] = ['en', 'de', 'ru', 'es', 'fr'];
     checkUpdate(values) {
-      this.$router.push({ query: Object.assign({}, this.$route.query, {
-        to: values.to,
-        from: values.from,
-        panel: values.panel
-      }) })
+        this.$router.push({
+            query: Object.assign({}, this.$route.query, {
+                to: values.to,
+                from: values.from,
+                panel: values.panel
+            })
+        });
     }
     switchLocation(localeValue) {
-      this.locale = localeValue
+        this.locale = localeValue;
     }
-  }
+}
 </script>
 
 <style>
@@ -67,15 +73,15 @@
     padding: 5px 15px;
     border-radius: 4px;
     cursor: pointer;
-    background-color: #F2F4F5;
+    background-color: #f2f4f5;
 }
 
 .button + .button {
-    margin-left: .25em;
+    margin-left: 0.25em;
 }
 
 .button.selected {
-    background-color: #3297DB;
-    color: #F2F4F5;
+    background-color: #3297db;
+    color: #f2f4f5;
 }
 </style>
