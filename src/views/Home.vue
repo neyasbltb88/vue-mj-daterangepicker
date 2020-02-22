@@ -1,7 +1,7 @@
 <template lang="pug">
   div
     div(style="margin: 20px 0;")
-    //-   date-range-picker(:to="$route.query.to" :from="$route.query.from" locale="ru" submit-title="Actualiser" :panel="$route.query.panel" @select="checkUpdate" :show-controls="false" :presets="['custom']" :panels="['year']" :theme="theme")
+      date-range-picker(:to="$route.query.to" :from="$route.query.from" locale="ru" submit-title="Actualiser" :panel="$route.query.panel" @select="checkUpdate" :show-controls="false"  :panels="['range']" :theme="theme")
     div(style="margin: 20px 0;")
     hr
     date-range-picker(:to="$route.query.to" :from="$route.query.from" locale="ru" @update="checkUpdate" showControls)

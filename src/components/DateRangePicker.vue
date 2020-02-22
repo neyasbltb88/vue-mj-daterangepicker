@@ -8,7 +8,7 @@
                 :class="{ 'is-current': panel === currentPanel }"
                 @click="currentPanel = panel"
             >
-                {{ $legends[locale].panels[panel] }}
+                {{ legends[locale].panels[panel] }}
             </div>
         </div>
 
@@ -17,7 +17,7 @@
                 <input type="radio" v-model="preset" :value="entry" />
                 <label :for="entry">
                     <span class="check"></span>
-                    <span>{{ $legends[locale].presets[entry] }}</span>
+                    <span>{{ legends[locale].presets[entry] }}</span>
                 </label>
             </div>
         </div>
@@ -27,7 +27,7 @@
             <div class="calendar-header">
                 <div
                     class="calendar-previous-month calendar-arrow calendar-arrow-previous"
-                    :aria-label="$legends[locale].previousMonth"
+                    :aria-label="legends[locale].previousMonth"
                     @click="changeMonth(1)"
                 >
                     <!-- arrow-left -->
@@ -38,7 +38,7 @@
                 <div class="calendar-month-name">{{ currentMonthName }}</div>
                 <div
                     class="calendar-previous-month calendar-arrow calendar-arrow-next"
-                    :aria-label="$legends[locale].nextMonth"
+                    :aria-label="legends[locale].nextMonth"
                     @click="changeMonth(-1)"
                 >
                     <!-- arrow-right -->
@@ -75,7 +75,7 @@
             <div class="calendar-header">
                 <div
                     class="calendar-previous-month calendar-arrow calendar-arrow-previous"
-                    :aria-label="$legends[locale].previousYear"
+                    :aria-label="legends[locale].previousYear"
                     @click="changeYear(1)"
                 >
                     <!-- arrow-left -->
@@ -86,7 +86,7 @@
                 <div class="calendar-month-name">{{ currentYearName }}</div>
                 <div
                     class="calendar-previous-month calendar-arrow calendar-arrow-next"
-                    :aria-label="$legends[locale].nextYear"
+                    :aria-label="legends[locale].nextYear"
                     @click="changeYear(-1)"
                 >
                     <!-- arrow-right -->
@@ -118,7 +118,7 @@
                     @click="selectQuarter(quarter)"
                     :class="quarterClasses(quarter)"
                 >
-                    <div class="legend">{{ $legends[locale].quarter }} {{ ++index }}</div>
+                    <div class="legend">{{ legends[locale].quarter }} {{ ++index }}</div>
                     <div class="months">
                         <div class="month" v-for="month in quarter.months" :key="month.displayDate">
                             <span>{{ month.displayDate }}</span>
@@ -159,9 +159,7 @@
     </div>
 </template>
 
-<script lang="ts">
-import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
-
+<script>
 import {
     addDays,
     subDays,
@@ -190,7 +188,7 @@ import {
     parse
 } from '../dateUtils';
 
-Vue.prototype.$legends = {
+let legends = {
     ru: {
         reset: 'Сбросить',
         submit: 'Применить',
@@ -224,365 +222,265 @@ Vue.prototype.$legends = {
     }
 };
 
-@Component({
+export default {
+    name: 'DateRangePicker',
     filters: {
         date(date, _format, opts) {
             if (!date) return '';
 
             return format(date, _format, opts);
         }
-    }
-})
-export default class extends Vue {
-    $legends: any;
-    currentPanel = null;
-
-    current = null;
-    weekSelector = false;
-    daySelector = false;
-    monthDays = [];
-    now = new Date().toISOString();
-    values = {
-        from: null,
-        to: null
-    };
-    hoverRange = [];
-    preset = 'custom';
-
-    @Prop({
-        type: String,
-        default: 'en'
-    })
-    locale;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    from;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    to;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    begin;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    allowFrom;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    allowTo;
-
-    @Prop({
-        type: Boolean,
-        default: true
-    })
-    past;
-
-    @Prop({
-        type: Boolean,
-        default: true
-    })
-    future;
-
-    @Prop({
-        type: Boolean,
-        default: true
-    })
-    showControls;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    panel;
-
-    @Prop({
-        type: Number,
-        default: 2
-    })
-    yearsCount;
-
-    @Prop({
-        type: Array,
-        default: () => ['range', 'week', 'month', 'quarter', 'year']
-    })
-    panels;
-
-    @Prop({
-        type: Object,
-        default: () => {
-            return {
-                primary: '#3297DB',
-                secondary: '#2D3E50',
-                ternary: '#93A0BD',
-                border: '#e6e6e6',
-                light: '#ffffff',
-                dark: '#000000',
-                hovers: {
-                    day: '#CCC',
-                    range: '#e6e6e6'
-                }
-            };
-        }
-    })
-    theme;
-
-    @Prop({
-        type: String,
-        default: 'auto'
-    })
-    width;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    resetTitle;
-
-    @Prop({
-        type: String,
-        default: null
-    })
-    submitTitle;
-
-    @Prop({
-        type: Array,
-        default: () => [
-            'today',
-            'yesterday',
-            'last7days',
-            'last30days',
-            'last90days',
-            'last365days',
-            'forever',
-            'custom'
-        ]
-    })
-    presets;
-
-    @Watch('currentPanel', { immediate: true })
-    switchMode(panel) {
-        this.weekSelector = panel === 'week' ? true : false;
-        this.daySelector = panel === 'day' ? true : false;
-        this.updateCalendar();
-        this.$emit('update:panel', panel);
-    }
-
-    @Watch('values', { deep: true })
-    emitValuesWithSelect(values) {
-        if (values.from && values.to) {
-            this.$emit('select', {
-                to: format(endOfDay(this.values.to), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
-                from: format(startOfDay(this.values.from), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
-                panel: this.currentPanel
-            });
-        }
-    }
-
-    @Watch('preset')
-    affectPreset(preset) {
-        this.current = this.now;
-        this.updateCalendar();
-
-        switch (preset) {
-            case 'custom':
-                this.values = { from: null, to: null };
-                break;
-            case 'today':
-                this.values = { from: startOfDay(this.now), to: this.now };
-                break;
-            case 'yesterday':
-                this.values = {
-                    from: startOfDay(subDays(this.now, 1)),
-                    to: endOfDay(subDays(this.now, 1))
-                };
-                break;
-            case 'tomorrow':
-                this.values = {
-                    from: startOfDay(addDays(this.now, 1)),
-                    to: endOfDay(addDays(this.now, 1))
-                };
-                break;
-            case 'last7days':
-                this.values = { from: startOfDay(subWeeks(this.now, 1)), to: this.now };
-                break;
-            case 'next7days':
-                this.values = { to: startOfDay(addWeeks(this.now, 1)), from: this.now };
-                break;
-            case 'last30days':
-                this.values = { from: startOfDay(subMonths(this.now, 1)), to: this.now };
-                break;
-            case 'next30days':
-                this.values = { to: startOfDay(addMonths(this.now, 1)), from: this.now };
-                break;
-            case 'last90days':
-                this.values = { from: startOfDay(subMonths(this.now, 3)), to: this.now };
-                break;
-            case 'next90days':
-                this.values = { to: startOfDay(addMonths(this.now, 3)), from: this.now };
-                break;
-            case 'last365days':
-                this.values = { from: startOfDay(subYears(this.now, 1)), to: this.now };
-                break;
-            case 'next365days':
-                this.values = { to: startOfDay(addYears(this.now, 1)), from: this.now };
-                break;
-            case 'forever':
-                this.values = { from: this.begin, to: this.now };
-                break;
-        }
-    }
-
-    get availablePanels() {
-        return this.panels;
-    }
-
-    get availablePresets() {
-        const index = this.presets.indexOf('forever');
-        if (!this.begin && index > -1) {
-            this.presets.splice(index, 1);
-        }
-        return this.presets;
-    }
-
-    get resetLegend() {
-        return this.resetTitle ? this.resetTitle : this.$legends[this.locale].reset;
-    }
-
-    get submitLegend() {
-        return this.submitTitle ? this.submitTitle : this.$legends[this.locale].submit;
-    }
-
-    get firstWeek() {
-        const days = this.monthDays.slice(0, 7);
-        const week = [];
-        for (const day of days) {
-            week.push({
-                name: format(day.date, 'dd')
-            });
-        }
-        return week;
-    }
-
-    get cssProps() {
-        return {
-            '--default-width': this.width,
-            '--primary-color': this.theme.primary,
-            '--hover-day-color': this.theme.hovers.day,
-            '--hover-range-color': this.theme.hovers.range,
-            '--secondary-color': this.theme.secondary,
-            '--ternary-color': this.theme.ternary,
-            '--normal-color': this.theme.light,
-            '--contrast-color': this.theme.dark,
-            '--border-color': this.theme.border
-        };
-    }
-
-    get yearMonths() {
-        const months = [];
-        let month = startOfYear(this.current);
-        while (months.length !== 12) {
-            const isMonthAllowed = this.isRangeAllowed([startOfMonth(month), endOfMonth(month)]);
-
-            months.push({
-                date: month,
-                selectable: isMonthAllowed,
-                displayDate: format(month, 'MMMM')
-            });
-            month = addMonths(month, 1);
-        }
-        return months;
-    }
-
-    get yearQuarters() {
-        const quarters = [];
-        for (const [index, month] of this.yearMonths.entries()) {
-            if (index % 3 === 0) {
-                const isQuarterAllowed = this.isRangeAllowed([
-                    startOfMonth(this.yearMonths[index].date),
-                    endOfMonth(this.yearMonths[index + 2].date)
-                ]);
-
-                quarters.push({
-                    months: [this.yearMonths[index], this.yearMonths[index + 1], this.yearMonths[index + 2]],
-                    selectable: isQuarterAllowed,
-                    range: {
-                        start: startOfDay(startOfMonth(this.yearMonths[index].date)),
-                        end: endOfDay(endOfMonth(this.yearMonths[index + 2].date))
+    },
+    props: {
+        locale: {
+            type: String,
+            default: 'ru'
+        },
+        from: {
+            type: String,
+            default: null
+        },
+        to: {
+            type: String,
+            default: null
+        },
+        begin: {
+            type: String,
+            default: null
+        },
+        allowFrom: {
+            type: String,
+            default: null
+        },
+        allowTo: {
+            type: String,
+            default: null
+        },
+        past: {
+            type: Boolean,
+            default: true
+        },
+        future: {
+            type: Boolean,
+            default: true
+        },
+        showControls: {
+            type: Boolean,
+            default: false
+        },
+        panel: {
+            type: String,
+            default: null
+        },
+        yearsCount: {
+            type: Number,
+            default: 2
+        },
+        panels: {
+            type: Array,
+            default: () => ['range', 'week', 'month', 'quarter', 'year']
+        },
+        theme: {
+            type: Object,
+            default: () => {
+                return {
+                    primary: '#3297DB',
+                    secondary: '#2D3E50',
+                    ternary: '#93A0BD',
+                    border: '#e6e6e6',
+                    light: '#ffffff',
+                    dark: '#000000',
+                    hovers: {
+                        day: '#CCC',
+                        range: '#e6e6e6'
                     }
-                });
+                };
+            }
+        },
+        width: {
+            type: String,
+            default: 'auto'
+        },
+        resetTitle: {
+            type: String,
+            default: null
+        },
+        submitTitle: {
+            type: String,
+            default: null
+        },
+        presets: {
+            type: Array,
+            default: () => [
+                'today',
+                'yesterday',
+                'last7days',
+                'last30days',
+                'last90days',
+                'last365days',
+                'forever',
+                'custom'
+            ]
+        }
+    },
+    data() {
+        return {
+            legends,
+            currentPanel: null,
+            current: null,
+            weekSelector: false,
+            daySelector: false,
+            monthDays: [],
+            now: new Date().toISOString(),
+            values: {
+                from: null,
+                to: null
+            },
+            hoverRange: [],
+            preset: 'custom'
+        };
+    },
+    watch: {
+        currentPanel: {
+            handler(panel) {
+                this.switchMode(panel);
+            },
+            immediate: true
+        },
+        values: {
+            handler(values) {
+                this.emitValuesWithSelect(values);
+            },
+            deep: true
+        },
+        preset: {
+            handler(preset) {
+                this.affectPreset(preset);
             }
         }
-        return quarters;
-    }
+    },
+    computed: {
+        availablePanels() {
+            return this.panels;
+        },
+        availablePresets() {
+            const index = this.presets.indexOf('forever');
+            if (!this.begin && index > -1) {
+                this.presets.splice(index, 1);
+            }
+            return this.presets;
+        },
+        resetLegend() {
+            return this.resetTitle ? this.resetTitle : this.legends[this.locale].reset;
+        },
+        submitLegend() {
+            return this.submitTitle ? this.submitTitle : this.legends[this.locale].submit;
+        },
+        firstWeek() {
+            const days = this.monthDays.slice(0, 7);
+            const week = [];
+            for (const day of days) {
+                week.push({
+                    name: format(day.date, 'dd')
+                });
+            }
+            return week;
+        },
+        cssProps() {
+            return {
+                '--default-width': this.width,
+                '--primary-color': this.theme.primary,
+                '--hover-day-color': this.theme.hovers.day,
+                '--hover-range-color': this.theme.hovers.range,
+                '--secondary-color': this.theme.secondary,
+                '--ternary-color': this.theme.ternary,
+                '--normal-color': this.theme.light,
+                '--contrast-color': this.theme.dark,
+                '--border-color': this.theme.border
+            };
+        },
+        yearMonths() {
+            const months = [];
+            let month = startOfYear(this.current);
+            while (months.length !== 12) {
+                const isMonthAllowed = this.isRangeAllowed([startOfMonth(month), endOfMonth(month)]);
 
-    get years() {
-        const years = [];
-        let i: number = this.yearsCount;
-        let start = this.future ? addYears(this.now, this.yearsCount) : this.now;
+                months.push({
+                    date: month,
+                    selectable: isMonthAllowed,
+                    displayDate: format(month, 'MMMM')
+                });
+                month = addMonths(month, 1);
+            }
+            return months;
+        },
+        yearQuarters() {
+            const quarters = [];
+            for (const [index, month] of this.yearMonths.entries()) {
+                if (index % 3 === 0) {
+                    const isQuarterAllowed = this.isRangeAllowed([
+                        startOfMonth(this.yearMonths[index].date),
+                        endOfMonth(this.yearMonths[index + 2].date)
+                    ]);
 
-        i = +this.future * this.yearsCount + +this.past * this.yearsCount + 1;
+                    quarters.push({
+                        months: [this.yearMonths[index], this.yearMonths[index + 1], this.yearMonths[index + 2]],
+                        selectable: isQuarterAllowed,
+                        range: {
+                            start: startOfDay(startOfMonth(this.yearMonths[index].date)),
+                            end: endOfDay(endOfMonth(this.yearMonths[index + 2].date))
+                        }
+                    });
+                }
+            }
+            return quarters;
+        },
+        years() {
+            const years = [];
+            let i = this.yearsCount;
+            let start = this.future ? addYears(this.now, this.yearsCount) : this.now;
 
-        while (i !== 0) {
-            const isYearAllowed = this.isRangeAllowed([startOfYear(start), endOfYear(start)]);
+            i = +this.future * this.yearsCount + +this.past * this.yearsCount + 1;
 
-            years.push({
-                date: start,
-                selectable: isYearAllowed,
-                displayDate: format(start, 'YYYY')
-            });
-            start = subYears(start, 1);
-            i = i - 1;
+            while (i !== 0) {
+                const isYearAllowed = this.isRangeAllowed([startOfYear(start), endOfYear(start)]);
+
+                years.push({
+                    date: start,
+                    selectable: isYearAllowed,
+                    displayDate: format(start, 'YYYY')
+                });
+                start = subYears(start, 1);
+                i = i - 1;
+            }
+
+            return years;
+        },
+        currentMonthName() {
+            return format(this.current, 'MMMM YYYY');
+        },
+        currentYearName() {
+            return format(this.current, 'YYYY');
+        },
+        isPresetPicker() {
+            return this.currentPanel === 'range';
+        },
+        isDaysPicker() {
+            return this.currentPanel === 'range' || this.currentPanel === 'week' || this.currentPanel === 'day';
+        },
+        isMonthsPicker() {
+            return this.currentPanel === 'month' || this.currentPanel === 'quarter';
+        },
+        isYearPicker() {
+            return this.currentPanel === 'year';
+        },
+        isMonthsPanel() {
+            return this.currentPanel === 'month';
+        },
+        isQuartersPanel() {
+            return this.currentPanel === 'quarter';
         }
-
-        return years;
-    }
-
-    get currentMonthName() {
-        return format(this.current, 'MMMM YYYY');
-    }
-
-    get currentYearName() {
-        return format(this.current, 'YYYY');
-    }
-
-    get isPresetPicker(): boolean {
-        return this.currentPanel === 'range';
-    }
-
-    get isDaysPicker(): boolean {
-        return this.currentPanel === 'range' || this.currentPanel === 'week' || this.currentPanel === 'day';
-    }
-
-    get isMonthsPicker(): boolean {
-        return this.currentPanel === 'month' || this.currentPanel === 'quarter';
-    }
-
-    get isYearPicker(): boolean {
-        return this.currentPanel === 'year';
-    }
-
-    get isMonthsPanel(): boolean {
-        return this.currentPanel === 'month';
-    }
-
-    get isQuartersPanel(): boolean {
-        return this.currentPanel === 'quarter';
-    }
-
+    },
     created() {
         window.DateRangePicker = this;
 
@@ -601,238 +499,300 @@ export default class extends Vue {
 
         // Set current panel
         this.currentPanel = this.panel || this.availablePanels[0];
-    }
+    },
+    methods: {
+        switchMode(panel) {
+            this.weekSelector = panel === 'week' ? true : false;
+            this.daySelector = panel === 'day' ? true : false;
+            this.updateCalendar();
+            this.$emit('update:panel', panel);
+        },
 
-    reset() {
-        this.values = {
-            to: null,
-            from: null
-        };
-        this.preset = null;
-        this.$emit('reset', { to: null, from: null });
-    }
-
-    update() {
-        if (!this.values.from || !this.values.to) {
-            return;
-        }
-        this.$emit('update', {
-            to: format(endOfDay(this.values.to), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
-            from: format(startOfDay(this.values.from), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
-            panel: this.currentPanel
-        });
-    }
-
-    changeMonth(diff: number) {
-        this.current = subMonths(this.current, diff);
-        this.updateCalendar();
-    }
-
-    changeYear(diff: number) {
-        this.current = subYears(this.current, diff);
-        this.updateCalendar();
-    }
-
-    selectPreset(preset) {
-        this.preset = preset;
-    }
-
-    selectDay(date) {
-        if (this.weekSelector) {
-            const range = this.getAllowedDatesOfRange([
-                startOfWeek(date, { weekStartsOn: 1 }),
-                endOfWeek(date, { weekStartsOn: 1 })
-            ]);
-
-            this.values.from = range[0];
-            this.values.to = range[range.length - 1];
-            return;
-        }
-
-        if (this.daySelector) {
-            this.values.from = startOfDay(date);
-            this.values.to = startOfDay(date);
-            return;
-        }
-
-        if ((this.values.from && this.values.to) || (!this.values.from && !this.values.to)) {
-            this.values.from = date;
-            this.values.to = null;
-        } else if (this.values.from && !this.values.to) {
-            if (isBefore(date, this.values.from)) {
-                this.values.from = date;
-            } else {
-                this.values.to = date;
-                this.hoverRange = [];
+        emitValuesWithSelect(values) {
+            if (values.from && values.to) {
+                this.$emit('select', {
+                    to: format(endOfDay(this.values.to), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
+                    from: format(startOfDay(this.values.from), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
+                    panel: this.currentPanel
+                });
             }
-        }
-        this.preset = 'custom';
-    }
+        },
 
-    selectQuarter(quarter) {
-        this.values.from = startOfDay(startOfMonth(quarter.range.start));
-        this.values.to = endOfMonth(quarter.range.end);
-        this.current = this.values.to;
-    }
+        affectPreset(preset) {
+            this.current = this.now;
+            this.updateCalendar();
 
-    selectMonth(month) {
-        this.values.from = startOfMonth(month.date);
-        this.values.to = endOfMonth(month.date);
-        this.current = this.values.to;
-    }
+            switch (preset) {
+                case 'custom':
+                    this.values = { from: null, to: null };
+                    break;
+                case 'today':
+                    this.values = { from: startOfDay(this.now), to: this.now };
+                    break;
+                case 'yesterday':
+                    this.values = {
+                        from: startOfDay(subDays(this.now, 1)),
+                        to: endOfDay(subDays(this.now, 1))
+                    };
+                    break;
+                case 'tomorrow':
+                    this.values = {
+                        from: startOfDay(addDays(this.now, 1)),
+                        to: endOfDay(addDays(this.now, 1))
+                    };
+                    break;
+                case 'last7days':
+                    this.values = { from: startOfDay(subWeeks(this.now, 1)), to: this.now };
+                    break;
+                case 'next7days':
+                    this.values = { to: startOfDay(addWeeks(this.now, 1)), from: this.now };
+                    break;
+                case 'last30days':
+                    this.values = { from: startOfDay(subMonths(this.now, 1)), to: this.now };
+                    break;
+                case 'next30days':
+                    this.values = { to: startOfDay(addMonths(this.now, 1)), from: this.now };
+                    break;
+                case 'last90days':
+                    this.values = { from: startOfDay(subMonths(this.now, 3)), to: this.now };
+                    break;
+                case 'next90days':
+                    this.values = { to: startOfDay(addMonths(this.now, 3)), from: this.now };
+                    break;
+                case 'last365days':
+                    this.values = { from: startOfDay(subYears(this.now, 1)), to: this.now };
+                    break;
+                case 'next365days':
+                    this.values = { to: startOfDay(addYears(this.now, 1)), from: this.now };
+                    break;
+                case 'forever':
+                    this.values = { from: this.begin, to: this.now };
+                    break;
+            }
+        },
 
-    selectYear(year) {
-        this.values.from = startOfYear(year.date);
-        this.values.to = endOfYear(year.date);
-        this.current = this.values.to;
-    }
-
-    hoverizeDay(date) {
-        if (!this.weekSelector && (!(this.values.from && !this.values.to) || isBefore(date, this.values.from))) {
-            this.hoverRange = [];
-            return;
-        }
-        if (this.weekSelector) {
-            this.hoverRange = [startOfWeek(date, { weekStartsOn: 1 }), endOfWeek(date, { weekStartsOn: 1 })];
-        } else {
-            this.hoverRange = [this.values.from, date];
-        }
-    }
-
-    updateCalendar() {
-        const days = [];
-
-        const lastDayOfMonth = endOfMonth(this.current);
-        const firstDayOfMonth = startOfMonth(this.current);
-        const nbDaysLastMonth = (+format(firstDayOfMonth, 'd') - 1) % 7;
-
-        let day = subDays(firstDayOfMonth, nbDaysLastMonth);
-
-        while (isBefore(day, lastDayOfMonth) || days.length % 7 > 0) {
-            const isAllowedByFutureAndPast =
-                this.future && isAfter(day, this.now)
-                    ? true
-                    : false || (this.past && isBefore(day, this.now))
-                    ? true
-                    : false || isSameDay(day, this.now);
-            const isAllowedByAllowedProps = this.isDateAllowed(day);
-            days.push({
-                date: day,
-                selectable: isAllowedByFutureAndPast && isAllowedByAllowedProps,
-                currentMonth: isSameMonth(this.current, day)
+        reset() {
+            this.values = {
+                to: null,
+                from: null
+            };
+            this.preset = null;
+            this.$emit('reset', { to: null, from: null });
+        },
+        update() {
+            if (!this.values.from || !this.values.to) {
+                return;
+            }
+            this.$emit('update', {
+                to: format(endOfDay(this.values.to), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
+                from: format(startOfDay(this.values.from), 'YYYY-MM-DDTHH:mm:ss.SSSZ'),
+                panel: this.currentPanel
             });
-            day = addDays(day, 1);
-        }
-        this.monthDays = days;
-    }
+        },
 
-    dayClasses(day) {
-        const classes = [];
+        changeMonth(diff) {
+            this.current = subMonths(this.current, diff);
+            this.updateCalendar();
+        },
+        changeYear(diff) {
+            this.current = subYears(this.current, diff);
+            this.updateCalendar();
+        },
 
-        if (day.currentMonth) {
-            classes.push('is-current-month');
-        }
-        if (this.values.from && this.values.to && isWithinRange(day.date, this.values.from, this.values.to)) {
-            classes.push('is-selected');
-        }
-        if (!day.selectable) {
-            classes.push('is-disabled');
-        }
-        if (isSameDay(day.date, this.now)) {
-            classes.push('is-today');
-        }
-        if (
-            (!this.values.to && isSameDay(day.date, this.values.from)) ||
-            (this.values.to &&
-                !this.values.from &&
-                isSameDay(day.date, this.values.from) &&
-                isSameDay(day.date, this.values.to)) ||
-            (this.values.to && this.values.from && isSameDay(day.date, this.values.from))
-        ) {
-            classes.push('is-first-range');
-            classes.push('is-edge-range');
-        }
-        if (this.values.to && isSameDay(day.date, this.values.to)) {
-            classes.push('is-last-range');
-            classes.push('is-edge-range');
-        }
+        selectPreset(preset) {
+            this.preset = preset;
+        },
+        selectDay(date) {
+            if (this.weekSelector) {
+                const range = this.getAllowedDatesOfRange([
+                    startOfWeek(date, { weekStartsOn: 1 }),
+                    endOfWeek(date, { weekStartsOn: 1 })
+                ]);
 
-        if (this.hoverRange.length === 2 && isWithinRange(day.date, this.hoverRange[0], this.hoverRange[1])) {
-            classes.push('is-in-range');
-        }
-        return classes;
-    }
+                this.values.from = range[0];
+                this.values.to = range[range.length - 1];
+                return;
+            }
 
-    monthClasses(month) {
-        const classes = [];
-        if (!month.selectable) {
-            classes.push('is-disabled');
-        }
-        if (this.values.to && this.values.from && isWithinRange(month.date, this.values.from, this.values.to)) {
-            classes.push('is-selected');
-        }
-        return classes;
-    }
+            if (this.daySelector) {
+                this.values.from = startOfDay(date);
+                this.values.to = startOfDay(date);
+                return;
+            }
 
-    quarterClasses(quarter) {
-        const classes = [];
-        if (!quarter.selectable) {
-            classes.push('is-disabled');
-        }
-        if (
-            this.values.to &&
-            this.values.from &&
-            isWithinRange(quarter.range.start, this.values.from, this.values.to) &&
-            isWithinRange(quarter.range.end, this.values.from, this.values.to)
-        ) {
-            classes.push('is-selected');
-        }
-        return classes;
-    }
+            if ((this.values.from && this.values.to) || (!this.values.from && !this.values.to)) {
+                this.values.from = date;
+                this.values.to = null;
+            } else if (this.values.from && !this.values.to) {
+                if (isBefore(date, this.values.from)) {
+                    this.values.from = date;
+                } else {
+                    this.values.to = date;
+                    this.hoverRange = [];
+                }
+            }
+            this.preset = 'custom';
+        },
+        selectQuarter(quarter) {
+            this.values.from = startOfDay(startOfMonth(quarter.range.start));
+            this.values.to = endOfMonth(quarter.range.end);
+            this.current = this.values.to;
+        },
+        selectMonth(month) {
+            this.values.from = startOfMonth(month.date);
+            this.values.to = endOfMonth(month.date);
+            this.current = this.values.to;
+        },
+        selectYear(year) {
+            this.values.from = startOfYear(year.date);
+            this.values.to = endOfYear(year.date);
+            this.current = this.values.to;
+        },
 
-    yearClasses(year) {
-        const classes = [];
-        if (!year.selectable) {
-            classes.push('is-disabled');
-        }
-        if (this.values.to && this.values.from) {
+        hoverizeDay(date) {
+            if (!this.weekSelector && (!(this.values.from && !this.values.to) || isBefore(date, this.values.from))) {
+                this.hoverRange = [];
+                return;
+            }
+            if (this.weekSelector) {
+                this.hoverRange = [startOfWeek(date, { weekStartsOn: 1 }), endOfWeek(date, { weekStartsOn: 1 })];
+            } else {
+                this.hoverRange = [this.values.from, date];
+            }
+        },
+
+        updateCalendar() {
+            const days = [];
+
+            const lastDayOfMonth = endOfMonth(this.current);
+            const firstDayOfMonth = startOfMonth(this.current);
+            const nbDaysLastMonth = (+format(firstDayOfMonth, 'd') - 1) % 7;
+
+            let day = subDays(firstDayOfMonth, nbDaysLastMonth);
+
+            while (isBefore(day, lastDayOfMonth) || days.length % 7 > 0) {
+                const isAllowedByFutureAndPast =
+                    this.future && isAfter(day, this.now)
+                        ? true
+                        : false || (this.past && isBefore(day, this.now))
+                        ? true
+                        : false || isSameDay(day, this.now);
+                const isAllowedByAllowedProps = this.isDateAllowed(day);
+                days.push({
+                    date: day,
+                    selectable: isAllowedByFutureAndPast && isAllowedByAllowedProps,
+                    currentMonth: isSameMonth(this.current, day)
+                });
+                day = addDays(day, 1);
+            }
+            this.monthDays = days;
+        },
+
+        dayClasses(day) {
+            const classes = [];
+
+            if (day.currentMonth) {
+                classes.push('is-current-month');
+            }
+            if (this.values.from && this.values.to && isWithinRange(day.date, this.values.from, this.values.to)) {
+                classes.push('is-selected');
+            }
+            if (!day.selectable) {
+                classes.push('is-disabled');
+            }
+            if (isSameDay(day.date, this.now)) {
+                classes.push('is-today');
+            }
             if (
-                isSameDay(this.values.from, startOfYear(year.date)) &&
-                isSameDay(this.values.to, endOfYear(year.date))
+                (!this.values.to && isSameDay(day.date, this.values.from)) ||
+                (this.values.to &&
+                    !this.values.from &&
+                    isSameDay(day.date, this.values.from) &&
+                    isSameDay(day.date, this.values.to)) ||
+                (this.values.to && this.values.from && isSameDay(day.date, this.values.from))
+            ) {
+                classes.push('is-first-range');
+                classes.push('is-edge-range');
+            }
+            if (this.values.to && isSameDay(day.date, this.values.to)) {
+                classes.push('is-last-range');
+                classes.push('is-edge-range');
+            }
+
+            if (this.hoverRange.length === 2 && isWithinRange(day.date, this.hoverRange[0], this.hoverRange[1])) {
+                classes.push('is-in-range');
+            }
+            return classes;
+        },
+        monthClasses(month) {
+            const classes = [];
+            if (!month.selectable) {
+                classes.push('is-disabled');
+            }
+            if (this.values.to && this.values.from && isWithinRange(month.date, this.values.from, this.values.to)) {
+                classes.push('is-selected');
+            }
+            return classes;
+        },
+        quarterClasses(quarter) {
+            const classes = [];
+            if (!quarter.selectable) {
+                classes.push('is-disabled');
+            }
+            if (
+                this.values.to &&
+                this.values.from &&
+                isWithinRange(quarter.range.start, this.values.from, this.values.to) &&
+                isWithinRange(quarter.range.end, this.values.from, this.values.to)
             ) {
                 classes.push('is-selected');
             }
+            return classes;
+        },
+        yearClasses(year) {
+            const classes = [];
+            if (!year.selectable) {
+                classes.push('is-disabled');
+            }
+            if (this.values.to && this.values.from) {
+                if (
+                    isSameDay(this.values.from, startOfYear(year.date)) &&
+                    isSameDay(this.values.to, endOfYear(year.date))
+                ) {
+                    classes.push('is-selected');
+                }
+            }
+            return classes;
+        },
+
+        isDateAllowed(date) {
+            let isAllowed = true;
+
+            if (this.allowFrom) {
+                isAllowed = isAllowed && !isBefore(date, parse(this.allowFrom));
+            }
+
+            if (this.allowTo) {
+                isAllowed = isAllowed && !isAfter(date, parse(this.allowTo));
+            }
+
+            return isAllowed;
+        },
+
+        isRangeAllowed([from, to]) {
+            return this.isDateAllowed(from) && this.isDateAllowed(to);
+        },
+
+        getAllowedDatesOfRange([from, to]) {
+            const distance = differenceInDays(to, from);
+
+            return new Array(distance + 1)
+                .fill(null)
+                .map((_, index) => addDays(from, index))
+                .filter(this.isDateAllowed);
         }
-        return classes;
     }
-
-    isDateAllowed(date) {
-        let isAllowed = true;
-
-        if (this.allowFrom) {
-            isAllowed = isAllowed && !isBefore(date, parse(this.allowFrom));
-        }
-
-        if (this.allowTo) {
-            isAllowed = isAllowed && !isAfter(date, parse(this.allowTo));
-        }
-
-        return isAllowed;
-    }
-
-    isRangeAllowed([from, to]) {
-        return this.isDateAllowed(from) && this.isDateAllowed(to);
-    }
-
-    getAllowedDatesOfRange([from, to]) {
-        const distance = differenceInDays(to, from);
-
-        return new Array(distance + 1)
-            .fill(null)
-            .map((_, index) => addDays(from, index))
-            .filter(this.isDateAllowed);
-    }
-}
+};
 </script>
 
 <style lang="scss">
