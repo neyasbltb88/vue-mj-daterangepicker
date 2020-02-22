@@ -161,19 +161,25 @@
 
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
-import SvgIcon from 'vue-svgicon';
-import './../assets/icons';
-import { dateFilter } from 'vue-date-fns';
+
 import {
     addDays,
+    subDays,
     addMonths,
+    subMonths,
     addWeeks,
+    subWeeks,
     addYears,
+    subYears,
     differenceInDays,
     endOfDay,
+    startOfDay,
     endOfMonth,
+    startOfMonth,
     endOfWeek,
+    startOfWeek,
     endOfYear,
+    startOfYear,
     format,
     isAfter,
     isBefore,
@@ -181,36 +187,50 @@ import {
     isSameMonth,
     isValid,
     isWithinRange,
-    parse,
-    startOfDay,
-    startOfMonth,
-    startOfWeek,
-    startOfYear,
-    subDays,
-    subMonths,
-    subWeeks,
-    subYears
-} from 'date-fns';
+    parse
+} from '../dateUtils';
 
-import dictionnaries from '../translations/index.js';
-
-Vue.prototype.$legends = dictionnaries;
-
-const locales = {
-    en: require('date-fns/locale/en'),
-    fr: require('date-fns/locale/fr'),
-    de: require('date-fns/locale/de'),
-    es: require('date-fns/locale/es'),
-    ru: require('date-fns/locale/ru')
+Vue.prototype.$legends = {
+    ru: {
+        reset: 'Сбросить',
+        submit: 'Применить',
+        previousMonth: 'Предыдущий месяц',
+        nextMonth: 'Следующий месяц',
+        previousYear: 'Предыдущий год',
+        nextYear: 'Следующий год',
+        quarter: 'Квартал',
+        panels: {
+            range: 'Период',
+            week: 'Неделя',
+            month: 'Месяц',
+            quarter: 'Квартал',
+            year: 'Год'
+        },
+        presets: {
+            custom: 'Пользовательский диапазон',
+            forever: 'С начала',
+            last7days: 'Последние 7 дней',
+            last30days: 'Последние 30 дней',
+            last90days: 'Последние 90 дней',
+            last365days: 'Последние 365 дней',
+            next365days: 'Следующие 365 дней',
+            next90days: 'Следующие 90 дней',
+            next30days: 'Следующие 30 дней',
+            next7days: 'Следующие 7 дней',
+            today: 'Сегодня',
+            tomorrow: 'Завтра',
+            yesterday: 'Вчера'
+        }
+    }
 };
-
-Vue.use(SvgIcon, {
-    tagName: 'svgicon'
-});
 
 @Component({
     filters: {
-        date: dateFilter
+        date(date, _format, opts) {
+            if (!date) return '';
+
+            return format(date, _format, opts);
+        }
     }
 })
 export default class extends Vue {
@@ -385,10 +405,16 @@ export default class extends Vue {
                 this.values = { from: startOfDay(this.now), to: this.now };
                 break;
             case 'yesterday':
-                this.values = { from: startOfDay(subDays(this.now, 1)), to: endOfDay(subDays(this.now, 1)) };
+                this.values = {
+                    from: startOfDay(subDays(this.now, 1)),
+                    to: endOfDay(subDays(this.now, 1))
+                };
                 break;
             case 'tomorrow':
-                this.values = { from: startOfDay(addDays(this.now, 1)), to: endOfDay(addDays(this.now, 1)) };
+                this.values = {
+                    from: startOfDay(addDays(this.now, 1)),
+                    to: endOfDay(addDays(this.now, 1))
+                };
                 break;
             case 'last7days':
                 this.values = { from: startOfDay(subWeeks(this.now, 1)), to: this.now };
@@ -445,7 +471,7 @@ export default class extends Vue {
         const week = [];
         for (const day of days) {
             week.push({
-                name: format(day.date, 'dd', { locale: locales[this.locale] })
+                name: format(day.date, 'dd')
             });
         }
         return week;
@@ -474,7 +500,7 @@ export default class extends Vue {
             months.push({
                 date: month,
                 selectable: isMonthAllowed,
-                displayDate: format(month, 'MMMM', { locale: locales[this.locale] })
+                displayDate: format(month, 'MMMM')
             });
             month = addMonths(month, 1);
         }
@@ -516,7 +542,7 @@ export default class extends Vue {
             years.push({
                 date: start,
                 selectable: isYearAllowed,
-                displayDate: format(start, 'YYYY', { locale: locales[this.locale] })
+                displayDate: format(start, 'YYYY')
             });
             start = subYears(start, 1);
             i = i - 1;
@@ -526,11 +552,11 @@ export default class extends Vue {
     }
 
     get currentMonthName() {
-        return format(this.current, 'MMMM YYYY', { locale: locales[this.locale] });
+        return format(this.current, 'MMMM YYYY');
     }
 
     get currentYearName() {
-        return format(this.current, 'YYYY', { locale: locales[this.locale] });
+        return format(this.current, 'YYYY');
     }
 
     get isPresetPicker(): boolean {
@@ -558,6 +584,8 @@ export default class extends Vue {
     }
 
     created() {
+        window.DateRangePicker = this;
+
         // Parse Inputs
         Object.keys(this.values).forEach(value => {
             this.values[value] = isValid(parse(this[value])) ? this[value] : null;
